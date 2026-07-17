@@ -55,7 +55,17 @@ export default function ProofReceipt({ market, settleTx, verdict }: Props) {
       </div>
     );
   if (!data)
-    return <div className="panel p-5 text-sm text-[var(--dim)]">Fetching Merkle proof from TxLINE…</div>;
+    return (
+      <div className="panel space-y-3 p-6">
+        <div className="text-sm font-bold">Proof receipt</div>
+        <div className="mono text-[11px] text-[var(--dim)]">
+          <span className="caret">fetching Merkle proof from TxLINE</span>
+        </div>
+        <div className="skeleton h-8 w-full" />
+        <div className="skeleton h-8 w-4/5" />
+        <div className="skeleton h-8 w-3/5" />
+      </div>
+    );
   if (!data.bundle)
     return (
       <div className="panel p-5 text-sm text-[var(--dim)]">
@@ -132,32 +142,91 @@ export default function ProofReceipt({ market, settleTx, verdict }: Props) {
   ];
 
   return (
-    <div className="panel space-y-0 p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="font-semibold">Proof receipt</h3>
-        {step >= 5 && (
-          <span className="glow chip chip-yes mono text-sm" style={{ fontSize: 14 }}>
+    <div className="panel relative space-y-0 overflow-hidden p-6">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            step >= 5
+              ? "radial-gradient(420px 220px at 85% 8%, rgba(62,242,160,0.09), transparent 65%)"
+              : undefined,
+          transition: "background 0.8s ease",
+        }}
+      />
+      <div className="mb-5 flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold">Proof receipt</h3>
+          <div className="mt-0.5 text-[11px] text-[var(--dim)]">
+            a real TxLINE Merkle proof, walked leaf → root → verdict
+          </div>
+        </div>
+        {step >= 5 ? (
+          <span
+            className="stamp mono rounded-xl border px-4 py-2 text-lg font-black"
+            style={{
+              color: "var(--accent)",
+              borderColor: "rgba(62,242,160,0.5)",
+              background: "rgba(62,242,160,0.08)",
+              boxShadow: "0 0 34px -6px rgba(62,242,160,0.55)",
+            }}
+          >
             ∎ QED
           </span>
+        ) : (
+          <button
+            onClick={() => setStep(0)}
+            className="mono text-[10px] text-[var(--dimmer)] hover:text-white"
+          >
+            verifying…
+          </button>
         )}
       </div>
-      <ol className="relative space-y-4 border-l border-[var(--line)] pl-5">
+      <ol className="relative space-y-5 pl-6">
+        {/* progress spine */}
+        <div
+          className="absolute bottom-1 left-[4px] top-1 w-px"
+          style={{ background: "var(--line)" }}
+        />
+        <div
+          className="absolute left-[4px] top-1 w-px transition-all duration-700"
+          style={{
+            background: "linear-gradient(180deg, var(--accent), var(--accent-2))",
+            height: `${Math.min(step / 5, 1) * 100}%`,
+            boxShadow: "0 0 12px rgba(62,242,160,0.5)",
+          }}
+        />
         {rows.map((r, i) => (
           <li
             key={i}
-            className={`transition-all duration-500 ${step >= i ? "opacity-100" : "opacity-15"}`}
+            className={`relative transition-all duration-500 ${
+              step >= i ? "translate-x-0 opacity-100" : "translate-x-2 opacity-20"
+            }`}
           >
             <span
-              className="absolute -left-[5px] mt-1.5 block h-2.5 w-2.5 rounded-full"
-              style={{ background: step >= i ? "var(--accent)" : "var(--line)" }}
+              className="absolute -left-6 top-1 block h-2.5 w-2.5 rounded-full transition-all duration-500"
+              style={{
+                background: step >= i ? "var(--accent)" : "var(--line)",
+                boxShadow: step >= i ? "0 0 10px rgba(62,242,160,0.8)" : undefined,
+                transform: step === i ? "scale(1.35)" : "scale(1)",
+              }}
             />
-            <div className="text-xs font-semibold uppercase tracking-wide text-[var(--dim)]">
+            <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-[var(--dim)]">
               {r.title}
             </div>
-            <div className="mt-1">{r.body}</div>
+            <div className="mt-1.5">{r.body}</div>
           </li>
         ))}
       </ol>
+      {step >= 5 && (
+        <div className="mt-6 rounded-xl border border-[var(--line)] bg-[var(--panel-2)]/50 px-4 py-3 text-[11px] leading-relaxed text-[var(--dim)]">
+          This is the exact payload the settlement transaction carried on-chain. Replay it against
+          the live oracle on the{" "}
+          <a className="link" href={`/verify?market=${market}`}>
+            verify page
+          </a>{" "}
+          — the verdict comes from txoracle&apos;s return data, not from this site.
+        </div>
+      )}
     </div>
   );
 }
