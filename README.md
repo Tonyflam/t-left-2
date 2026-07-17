@@ -34,14 +34,15 @@ instruction TxLINE ships, which (as far as we can tell) no other team touched.
 | **2. NO is provable too** | Most "trustless" markets can only *prove* YES; NO settles by timeout or trust | **De Morgan negation engine on-chain**: ¬(L₁∧…∧Lₙ) = ¬L₁∨…∨¬Lₙ — the settler proves any single failed leg; the program derives the negated predicate itself |
 | **3. Finality is in the leaf** | Settling on a transient 1-0 at minute 43 is the classic oracle attack | TxLINE `game_finalised` records carry `period = 100` **inside the Merkle-proven stat leaf**. QED's program rejects any proof whose leaves aren't finalised — provable finality, not assumed finality |
 | **4. Tested against the real verifier** | Mocked oracles prove nothing | Our hermetic test suite replays settlement against the **actual txoracle bytecode dumped from devnet** with **real daily Merkle-root accounts** and **real captured proof bundles** |
+| **5. Proofs bigger than a transaction** | A parlay's Merkle proof (~1.1–1.3 KB) exceeds Solana's 1232-byte tx cap — most designs simply can't settle it | **Chunked ProofBuffer PDA**: proof staged in ≤800-byte chunks, settled via `settle_*_buffered` through the same four gates, buffer closed back to the settler (rent-neutral). Proven live on devnet |
 
 ---
 
 ## Live demo
 
 - **App**: _deploy URL here_
-- **Program (devnet)**: _program id here_
-- **Settlement txs (devnet)**: see [docs/DEPLOY-LOG.md](docs/DEPLOY-LOG.md)
+- **Program (devnet)**: [`hftsrw9iWqYZnyL5FjJ4vBtPaaTkgRADKvuCWtFPj7C`](https://explorer.solana.com/address/hftsrw9iWqYZnyL5FjJ4vBtPaaTkgRADKvuCWtFPj7C?cluster=devnet)
+- **Settlement txs (devnet)**: see [docs/DEPLOY-LOG.md](docs/DEPLOY-LOG.md) — incl. a 3-leg parlay settled through the **chunked proof buffer**
 - **Demo video**: _link here_
 
 Matches end before judging — so QED ships a **Replay Theater**: any finished
@@ -54,25 +55,26 @@ settlement flow. What you see in replay is byte-for-byte what production saw liv
 ```
 program/          Anchor workspace — qed_markets program + txoracle CPI bindings
   programs/qed-markets/src/
-    lib.rs        instructions: create_market, stake, settle_yes, settle_no, claim, void, refund
-    state.rs      Market / Position accounts, Leg model
+    lib.rs        instructions: create_market, stake, settle_yes/no, write_proof_chunk,
+                  settle_yes/no_buffered, claim, void, refund
+    state.rs      Market / Position / ProofBuffer accounts, Leg model
     strategy.rs   on-chain strategy compiler + De Morgan negation engine
     txoracle.rs   CPI types + manual invoke of validate_stat_v2 (discriminator-exact)
-  tests/          hermetic LiteSVM e2e vs real dumped txoracle bytecode
-app/              Next.js 14 — board, market pages, prop builder, replay theater, verifier
 keeper/           ops: subscribe+activate, market seeding, settlement watcher, golden capture
-docs/             technical doc, demo script, API feedback, deploy log
+  tests/          hermetic LiteSVM e2e (14/14) vs real dumped txoracle bytecode
+web/              Next.js 14 — board, proof-receipt market pages, live verifier, replay theater
+docs/             TECHNICAL.md, FEEDBACK.md (TxLINE API notes), DEPLOY-LOG.md
 ```
 
 ## Quickstart (judges)
 
 ```bash
 # 1. Hermetic settlement replay — no wallet, no network, no SOL needed
-cd program && cargo test                 # unit: negation engine, payout math
-npm install && npm run test:e2e         # LiteSVM: create → stake → settle(CPI) → claim
+cd keeper && npm install && npm test    # LiteSVM 14/14: create → stake → settle(real oracle CPI) → claim
+                                        # incl. fraud rejection + chunked-buffer parlay
 
 # 2. Run the app against live TxLINE devnet
-cd app && npm install && npm run dev     # http://localhost:3000
+cd web && npm install && npm run dev    # http://localhost:3000
 ```
 
 Full setup (deploy, subscribe, seed, settle) in [docs/TECHNICAL.md](docs/TECHNICAL.md).
