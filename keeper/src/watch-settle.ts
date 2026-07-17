@@ -167,7 +167,7 @@ async function main() {
       : [];
     console.log(`[${new Date().toISOString()}] checking ${seeded.length} markets…`);
     for (const entry of seeded) {
-      if (entry.settleTx) continue;
+      if (entry.settleTx || entry.skip) continue;
       try {
         await settleOne(program, client, entry, payer);
       } catch (e) {

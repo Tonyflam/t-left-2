@@ -80,7 +80,8 @@
     "away": "Away",
     "startMs": 1783803600000,
     "settleAfterTsMs": 1783809600000,
-    "createTx": "5a6DZk4DHGfQKXPixHAHqomuNghZ8unXh7dydg9fFEq9TFnsjWjztFHw3JGbuNTwvxUrsCnEyDHEWwfDMvH2GapF"
+    "createTx": "5a6DZk4DHGfQKXPixHAHqomuNghZ8unXh7dydg9fFEq9TFnsjWjztFHw3JGbuNTwvxUrsCnEyDHEWwfDMvH2GapF",
+    "skip": "exceeds 5-statKey API cap (pre-guard market, will void after window)"
   },
   {
     "marketId": "1784326563407260",
@@ -263,5 +264,90 @@
       "yes": 300000000,
       "no": 200000000
     }
+  },
+  {
+    "marketId": "1784327881764727",
+    "market": "6qDtYnRpNEjT3cHz7hAZ6BGoUrZbf1mBCuoWuAYKLWyG",
+    "fixtureId": 18213979,
+    "label": "Home beats Away",
+    "legs": [
+      {
+        "kind": "binary",
+        "keyA": 1,
+        "keyB": 2,
+        "op": "subtract",
+        "cmp": "greaterThan",
+        "threshold": 0
+      }
+    ],
+    "home": "Home",
+    "away": "Away",
+    "startMs": 1783803600000,
+    "settleAfterTsMs": 1783809600000,
+    "createTx": "3L8mZgkP2s25dKkWoYRJwy3HcHFdw7HVZqiRMYXZPqF4MKSUAMgdqFKZEdAhr9fo8VSanbt5EbZj43EALoYSjits",
+    "settleTx": "iwtL3FasUyjuRYjK2GZLeDTifJ6K5cyz4HTKv5UPxhCUQokwPgbbGjaixTGNj3tMju2s7bGMFtW72u2Hs2922AG",
+    "verdict": "NO"
+  },
+  {
+    "marketId": "1784327882430474",
+    "market": "4NyJKmvHkP6Dx1tGKosUWSN6dBi8dsCKMnetUsiEY9qH",
+    "fixtureId": 18213979,
+    "label": "Home vs Away: over 2.5 goals",
+    "legs": [
+      {
+        "kind": "binary",
+        "keyA": 1,
+        "keyB": 2,
+        "op": "add",
+        "cmp": "greaterThan",
+        "threshold": 2
+      }
+    ],
+    "home": "Home",
+    "away": "Away",
+    "startMs": 1783803600000,
+    "settleAfterTsMs": 1783809600000,
+    "createTx": "fARy2xssJFisGCfeQokxFMSKBJwUrvtZLps81jfAijXS3pELbCd2BVgQDYASWSbQ1h4SGW7tK7yv6jk2HYuNQe4",
+    "settleTx": "noEEkkdpgUSPwwT32RS26JeLF6pwJPpiUUCV5Mk3Z9HTQKWeg7sauamaXszqmCQvBGu6dRPbYL82dN7AMJq4Zkw",
+    "verdict": "YES"
+  },
+  {
+    "marketId": "1784327882831794",
+    "market": "B52Z5hu6Arq1MM5GF15q8RtwFpLUEyWhcbZxJCUSYiUu",
+    "fixtureId": 18213979,
+    "label": "Away win + over 2.5 goals + Home 5+ corners (parlay)",
+    "legs": [
+      {
+        "kind": "binary",
+        "keyA": 2,
+        "keyB": 1,
+        "op": "subtract",
+        "cmp": "greaterThan",
+        "threshold": 0
+      },
+      {
+        "kind": "binary",
+        "keyA": 1,
+        "keyB": 2,
+        "op": "add",
+        "cmp": "greaterThan",
+        "threshold": 2
+      },
+      {
+        "kind": "single",
+        "keyA": 7,
+        "keyB": 0,
+        "op": "add",
+        "cmp": "greaterThan",
+        "threshold": 4
+      }
+    ],
+    "home": "Home",
+    "away": "Away",
+    "startMs": 1783803600000,
+    "settleAfterTsMs": 1783809600000,
+    "createTx": "r5ky9mnRaSqfFxQzcxKatUjWUHe9LreUMF92iyV9zL2sUaohrbJu9rWM6i9zAhMchem8SSiiY89gFrYbSrqMQyT",
+    "settleTx": "5MuJfCkRJBeyzvaM5EtcpBXZxGGxYp6czWp82xc8v5XroQCAL5pEpY7cpx1VkUvBFAQeoC6ChzNto1GTvSZhPumP",
+    "verdict": "YES"
   }
 ]
