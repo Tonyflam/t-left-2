@@ -1,0 +1,85 @@
+[
+  {
+    "marketId": "1784325963151890",
+    "market": "552nFZzi3eZVvNKus5pqUJVW9EjnHw2rc2KqoPWdiDiq",
+    "fixtureId": 18213979,
+    "label": "Home beats Away",
+    "legs": [
+      {
+        "kind": "binary",
+        "keyA": 1,
+        "keyB": 2,
+        "op": "subtract",
+        "cmp": "greaterThan",
+        "threshold": 0
+      }
+    ],
+    "home": "Home",
+    "away": "Away",
+    "startMs": 1783803600000,
+    "settleAfterTsMs": 1783809600000,
+    "createTx": "45aP5dJJBCM4GYkQ714EgLuRuMejUDMajxpHCZomExLFUUSA4GSDFJMEb4gvdN3tXtKzuFtFcDHZw9PP1iCuLg6B",
+    "settleTx": "1apM5syf7pkmmsvuKZ17i3h9cSumVFcqfbsoHz9QqT6NQoJneGRxqE7i9vNLF75wh3cLLTsNtzNqSiY6mZZpj2L",
+    "verdict": "NO"
+  },
+  {
+    "marketId": "1784325963664249",
+    "market": "BRzUoT3PGRKyoebkhFH9umZ19qZL9RXDi9MUmeLLx1Z3",
+    "fixtureId": 18213979,
+    "label": "Home vs Away: over 2.5 goals",
+    "legs": [
+      {
+        "kind": "binary",
+        "keyA": 1,
+        "keyB": 2,
+        "op": "add",
+        "cmp": "greaterThan",
+        "threshold": 2
+      }
+    ],
+    "home": "Home",
+    "away": "Away",
+    "startMs": 1783803600000,
+    "settleAfterTsMs": 1783809600000,
+    "createTx": "4iQ2hQrPaFNx96BGTaqAHJAbze3t1g4QZ84SJRxA8UD2z7P4oQQC8KLccybjUec5z6cmNuAgFNBChM4FHDD1atdB",
+    "settleTx": "2LHzcYjiNKQft2BnNYttj2PS1yXn2P33UuYsFXuKZsxKFnS5oR7A25p86bkXSrwje26cLbcZsvvxUnPDxkF8unAU",
+    "verdict": "YES"
+  },
+  {
+    "marketId": "1784325964365785",
+    "market": "BTnmoUxatduQ98zrFWuynQq2QDm9BVm5a8rvaTyAMVcH",
+    "fixtureId": 18213979,
+    "label": "Home win + over 2.5 + 9+ corners (parlay)",
+    "legs": [
+      {
+        "kind": "binary",
+        "keyA": 1,
+        "keyB": 2,
+        "op": "subtract",
+        "cmp": "greaterThan",
+        "threshold": 0
+      },
+      {
+        "kind": "binary",
+        "keyA": 1,
+        "keyB": 2,
+        "op": "add",
+        "cmp": "greaterThan",
+        "threshold": 2
+      },
+      {
+        "kind": "binary",
+        "keyA": 7,
+        "keyB": 8,
+        "op": "add",
+        "cmp": "greaterThan",
+        "threshold": 8
+      }
+    ],
+    "home": "Home",
+    "away": "Away",
+    "startMs": 1783803600000,
+    "settleAfterTsMs": 1783809600000,
+    "createTx": "5a6DZk4DHGfQKXPixHAHqomuNghZ8unXh7dydg9fFEq9TFnsjWjztFHw3JGbuNTwvxUrsCnEyDHEWwfDMvH2GapF"
+  }
+]

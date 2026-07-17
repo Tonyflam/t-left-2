@@ -1,0 +1,19 @@
+[workspace]
+members = ["programs/*"]
+resolver = "2"
+
+# anchor-lang 0.31.1 transitively pulls edition2024 crates (block-buffer 0.12,
+# zerocopy…) which need rustc ≥ 1.85 inside the SBF toolchain. Platform-tools
+# v1.52 ships rustc 1.89 and still emits SBPFv0, deployable on current devnet.
+[workspace.metadata.solana]
+tools-version = "v1.52"
+
+[profile.release]
+overflow-checks = true
+lto = "fat"
+codegen-units = 1
+
+[profile.release.build-override]
+opt-level = 3
+incremental = false
+codegen-units = 1

@@ -1,0 +1,24 @@
+# ─── SECRETS — never commit ───────────────────────────────
+.keys/
+*.keypair.json
+*-keypair.json
+.txline-auth.json
+.env
+.env.*
+!.env.example
+
+# ─── Build artifacts ──────────────────────────────────────
+node_modules/
+target/
+dist/
+.next/
+out/
+*.tsbuildinfo
+
+# ─── Anchor / Solana local state ──────────────────────────
+program/.anchor/
+test-ledger/
+
+# ─── Misc ─────────────────────────────────────────────────
+.DS_Store
+*.log
