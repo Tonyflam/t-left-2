@@ -1,6 +1,7 @@
 # Devnet Deploy Log — every claim is a transaction
 
 Cluster: **devnet**. All links open in Solana Explorer.
+Live app: **[qed-markets.vercel.app](https://qed-markets.vercel.app)**
 
 ## Programs & accounts
 

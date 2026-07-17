@@ -40,7 +40,7 @@ instruction TxLINE ships, which (as far as we can tell) no other team touched.
 
 ## Live demo
 
-- **App**: _deploy URL here_
+- **App**: **[qed-markets.vercel.app](https://qed-markets.vercel.app)** — live against TxLINE devnet
 - **Program (devnet)**: [`hftsrw9iWqYZnyL5FjJ4vBtPaaTkgRADKvuCWtFPj7C`](https://explorer.solana.com/address/hftsrw9iWqYZnyL5FjJ4vBtPaaTkgRADKvuCWtFPj7C?cluster=devnet)
 - **Settlement txs (devnet)**: see [docs/DEPLOY-LOG.md](docs/DEPLOY-LOG.md) — incl. a 3-leg parlay settled through the **chunked proof buffer**
 - **Demo video**: _link here_
