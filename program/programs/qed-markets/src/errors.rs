@@ -62,6 +62,12 @@ pub enum QedError {
     NothingToClaim,
     #[msg("Refunds are only available for voided or dead markets")]
     RefundUnavailable,
+    #[msg("Proof payload exceeds the staging buffer capacity")]
+    ProofTooLarge,
+    #[msg("Proof buffer does not belong to this settler/market")]
+    ProofBufferMismatch,
+    #[msg("Staged proof payload failed to deserialize")]
+    MalformedProof,
     #[msg("Arithmetic overflow")]
     MathOverflow,
 }

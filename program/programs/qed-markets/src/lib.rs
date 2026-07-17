@@ -187,6 +187,55 @@ pub mod qed_markets {
         verify_and_settle(ctx, payload, expected_keys, compiled, MarketStatus::SettledNo)
     }
 
+    /// Stage a slice of a serialized `StatValidationInput` into the settler's
+    /// proof buffer. Multi-leg parlay proofs exceed the 1232-byte transaction
+    /// cap, so they are uploaded in chunks and settled with
+    /// `settle_yes_buffered` / `settle_no_buffered`.
+    pub fn write_proof_chunk(
+        ctx: Context<WriteProofChunk>,
+        offset: u32,
+        chunk: Vec<u8>,
+    ) -> Result<()> {
+        let buf = &mut ctx.accounts.proof_buffer;
+        buf.owner = ctx.accounts.settler.key();
+        buf.market = ctx.accounts.market.key();
+        if offset == 0 {
+            buf.data.clear(); // restart any previous staging
+        }
+        let end = (offset as usize)
+            .checked_add(chunk.len())
+            .ok_or(QedError::MathOverflow)?;
+        require!(end <= MAX_PROOF_BYTES, QedError::ProofTooLarge);
+        if buf.data.len() < end {
+            buf.data.resize(end, 0);
+        }
+        buf.data[offset as usize..end].copy_from_slice(&chunk);
+        Ok(())
+    }
+
+    /// Settle YES from a previously staged proof buffer (parlay-sized proofs).
+    pub fn settle_yes_buffered(ctx: Context<SettleBuffered>) -> Result<()> {
+        let payload = deserialize_buffered_payload(&ctx.accounts.proof_buffer)?;
+        let expected_keys = strategy::expected_slot_keys(&ctx.accounts.market.legs);
+        let compiled = strategy::compile_yes_strategy(&ctx.accounts.market.legs)?;
+        verify_and_settle_buffered(ctx, payload, expected_keys, compiled, MarketStatus::SettledYes)
+    }
+
+    /// Settle NO from a previously staged proof buffer.
+    pub fn settle_no_buffered(
+        ctx: Context<SettleBuffered>,
+        failed_leg_index: u8,
+        eq_branch: Option<EqBranch>,
+    ) -> Result<()> {
+        let payload = deserialize_buffered_payload(&ctx.accounts.proof_buffer)?;
+        let (compiled, expected_keys) = strategy::compile_no_strategy(
+            &ctx.accounts.market.legs,
+            failed_leg_index as usize,
+            eq_branch,
+        )?;
+        verify_and_settle_buffered(ctx, payload, expected_keys, compiled, MarketStatus::SettledNo)
+    }
+
     /// Winners claim stake + pro-rata share of the losing pool.
     pub fn claim(ctx: Context<Claim>) -> Result<()> {
         let market = &ctx.accounts.market;
@@ -279,7 +328,7 @@ pub mod qed_markets {
     }
 }
 
-/// Shared settlement core for both directions.
+/// Shared settlement wrapper for the single-transaction path.
 fn verify_and_settle(
     ctx: Context<Settle>,
     payload: StatValidationInput,
@@ -287,8 +336,68 @@ fn verify_and_settle(
     compiled: txoracle::NDimensionalStrategy,
     outcome: MarketStatus,
 ) -> Result<()> {
-    let market_key = ctx.accounts.market.key();
-    let market = &ctx.accounts.market;
+    settle_core(
+        &ctx.accounts.settler,
+        &mut ctx.accounts.market,
+        &ctx.accounts.vault,
+        &ctx.accounts.settler_token,
+        &ctx.accounts.fee_treasury_token,
+        &ctx.accounts.oracle_program,
+        &ctx.accounts.daily_scores_roots,
+        &ctx.accounts.token_program,
+        payload,
+        expected_keys,
+        compiled,
+        outcome,
+    )
+}
+
+/// Shared settlement wrapper for the staged-buffer path (parlay-sized proofs).
+/// The buffer account is closed back to the settler by Anchor on success.
+fn verify_and_settle_buffered(
+    ctx: Context<SettleBuffered>,
+    payload: StatValidationInput,
+    expected_keys: Vec<u32>,
+    compiled: txoracle::NDimensionalStrategy,
+    outcome: MarketStatus,
+) -> Result<()> {
+    settle_core(
+        &ctx.accounts.settler,
+        &mut ctx.accounts.market,
+        &ctx.accounts.vault,
+        &ctx.accounts.settler_token,
+        &ctx.accounts.fee_treasury_token,
+        &ctx.accounts.oracle_program,
+        &ctx.accounts.daily_scores_roots,
+        &ctx.accounts.token_program,
+        payload,
+        expected_keys,
+        compiled,
+        outcome,
+    )
+}
+
+fn deserialize_buffered_payload(buf: &Account<ProofBuffer>) -> Result<StatValidationInput> {
+    StatValidationInput::try_from_slice(&buf.data).map_err(|_| QedError::MalformedProof.into())
+}
+
+/// Settlement core shared by both paths.
+#[allow(clippy::too_many_arguments)]
+fn settle_core<'info>(
+    settler: &Signer<'info>,
+    market: &mut Account<'info, Market>,
+    vault: &Account<'info, TokenAccount>,
+    settler_token: &Account<'info, TokenAccount>,
+    fee_treasury_token: &Account<'info, TokenAccount>,
+    oracle_program: &UncheckedAccount<'info>,
+    daily_scores_roots: &UncheckedAccount<'info>,
+    token_program: &Program<'info, Token>,
+    payload: StatValidationInput,
+    expected_keys: Vec<u32>,
+    compiled: txoracle::NDimensionalStrategy,
+    outcome: MarketStatus,
+) -> Result<()> {
+    let market_key = market.key();
     require!(market.is_open(), QedError::MarketNotOpen);
     require!(
         Clock::get()?.unix_timestamp >= market.deadline_ts,
@@ -327,31 +436,26 @@ fn verify_and_settle(
 
     // ── Gate 4: the oracle program and its daily-root PDA are the real ones ─
     require_keys_eq!(
-        ctx.accounts.oracle_program.key(),
+        oracle_program.key(),
         market.oracle_program,
         QedError::WrongOracleProgram
     );
     let (expected_root, _) = daily_scores_roots_pda(payload.ts, &market.oracle_program)?;
     require_keys_eq!(
-        ctx.accounts.daily_scores_roots.key(),
+        daily_scores_roots.key(),
         expected_root,
         QedError::WrongDailyRootAccount
     );
 
     // ── The proof itself: one CPI. Forged proofs revert inside the oracle. ──
-    let verdict = txoracle::cpi_validate_stat_v2(
-        &ctx.accounts.oracle_program,
-        &ctx.accounts.daily_scores_roots,
-        &payload,
-        &compiled,
-    )?;
+    let verdict =
+        txoracle::cpi_validate_stat_v2(oracle_program, daily_scores_roots, &payload, &compiled)?;
     require!(verdict, QedError::OracleSaysNo);
 
     // ── Payout bookkeeping ──────────────────────────────────────────────────
-    let market = &mut ctx.accounts.market;
     market.status = outcome;
     market.settled_at = Clock::get()?.unix_timestamp;
-    market.settler = ctx.accounts.settler.key();
+    market.settler = settler.key();
 
     let winning = market.winning_side().unwrap();
     let losing_pool = match winning {
@@ -377,28 +481,16 @@ fn verify_and_settle(
     let proven: Vec<i32> = payload.stats.iter().map(|s| s.stat.value).collect();
 
     if bounty > 0 {
-        transfer_from_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.vault,
-            &ctx.accounts.settler_token,
-            market,
-            bounty,
-        )?;
+        transfer_from_vault(token_program, vault, settler_token, market, bounty)?;
     }
     if fee > 0 {
-        transfer_from_vault(
-            &ctx.accounts.token_program,
-            &ctx.accounts.vault,
-            &ctx.accounts.fee_treasury_token,
-            market,
-            fee,
-        )?;
+        transfer_from_vault(token_program, vault, fee_treasury_token, market, fee)?;
     }
 
     emit!(MarketSettled {
         market: market_key,
         outcome,
-        settler: ctx.accounts.settler.key(),
+        settler: settler.key(),
         bounty,
         fee,
         proof_ts_ms: payload.ts,
@@ -603,6 +695,75 @@ pub struct VoidMarket<'info> {
         bump = market.bump
     )]
     pub market: Account<'info, Market>,
+}
+
+#[derive(Accounts)]
+pub struct WriteProofChunk<'info> {
+    #[account(mut)]
+    pub settler: Signer<'info>,
+    #[account(
+        seeds = [Market::SEED, market.market_id.to_le_bytes().as_ref()],
+        bump = market.bump
+    )]
+    pub market: Account<'info, Market>,
+    #[account(
+        init_if_needed,
+        payer = settler,
+        space = 8 + ProofBuffer::SPACE,
+        seeds = [ProofBuffer::SEED, market.key().as_ref(), settler.key().as_ref()],
+        bump
+    )]
+    pub proof_buffer: Account<'info, ProofBuffer>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct SettleBuffered<'info> {
+    #[account(mut)]
+    pub settler: Signer<'info>,
+    #[account(
+        mut,
+        seeds = [Market::SEED, market.market_id.to_le_bytes().as_ref()],
+        bump = market.bump
+    )]
+    pub market: Account<'info, Market>,
+    #[account(
+        mut,
+        seeds = [Market::VAULT_SEED, market.key().as_ref()],
+        bump,
+        token::mint = market.mint,
+        token::authority = market
+    )]
+    pub vault: Account<'info, TokenAccount>,
+    /// Bounty destination — any token account of the market's mint.
+    #[account(
+        mut,
+        constraint = settler_token.mint == market.mint @ QedError::InvalidFees
+    )]
+    pub settler_token: Account<'info, TokenAccount>,
+    /// Must be the exact fee treasury pinned at creation.
+    #[account(
+        mut,
+        constraint = fee_treasury_token.key() == market.fee_treasury @ QedError::InvalidFees
+    )]
+    pub fee_treasury_token: Account<'info, TokenAccount>,
+    /// CHECK: address equality against `market.oracle_program` is enforced in
+    /// the handler before the CPI.
+    pub oracle_program: UncheckedAccount<'info>,
+    /// CHECK: re-derived in the handler from the payload timestamp and the
+    /// pinned oracle program id.
+    pub daily_scores_roots: UncheckedAccount<'info>,
+    /// Staged payload; closed back to the settler on success (rent-neutral).
+    #[account(
+        mut,
+        close = settler,
+        seeds = [ProofBuffer::SEED, market.key().as_ref(), settler.key().as_ref()],
+        bump,
+        constraint = proof_buffer.owner == settler.key()
+            && proof_buffer.market == market.key() @ QedError::ProofBufferMismatch
+    )]
+    pub proof_buffer: Account<'info, ProofBuffer>,
+    pub token_program: Program<'info, Token>,
 }
 
 // ─────────────────────────── Events ───────────────────────────

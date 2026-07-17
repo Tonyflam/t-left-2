@@ -169,3 +169,23 @@ pub struct Position {
 impl Position {
     pub const SEED: &'static [u8] = b"position";
 }
+
+/// Maximum serialized `StatValidationInput` size stageable in a proof buffer.
+/// A 5-slot payload with ~20-level proofs is ≈ 2.6 KiB; 4 KiB leaves headroom.
+pub const MAX_PROOF_BYTES: usize = 4_096;
+
+/// Per-(market, settler) staging area for proof payloads that exceed the
+/// 1232-byte transaction cap (multi-leg parlays). Chunks are appended with
+/// `write_proof_chunk`; `settle_*_buffered` consumes the buffer and closes it
+/// back to the settler, so staging is rent-neutral.
+#[account]
+pub struct ProofBuffer {
+    pub owner: Pubkey,
+    pub market: Pubkey,
+    pub data: Vec<u8>,
+}
+
+impl ProofBuffer {
+    pub const SEED: &'static [u8] = b"proof";
+    pub const SPACE: usize = 32 + 32 + 4 + MAX_PROOF_BYTES;
+}

@@ -19,11 +19,15 @@ import { ComputeBudgetProgram, PublicKey } from "@solana/web3.js";
 import { DEPLOYER_KEYPAIR, REPO_ROOT } from "./config.js";
 import {
   LegInput,
+  MAX_SINGLE_TX_PAYLOAD,
   ORACLE_ID,
   bundleValues,
   dailyRootsPda,
   legStatKeys,
+  proofBufferPda,
   qedProgram,
+  serializePayload,
+  stageProofChunks,
   toStatValidationInput,
   vaultPda,
 } from "./qed.js";
@@ -48,7 +52,12 @@ function legHolds(leg: LegInput, values: Map<number, number>): boolean {
   }
 }
 
-async function settleOne(program: anchor.Program, client: TxLineClient, entry: any): Promise<boolean> {
+async function settleOne(
+  program: anchor.Program,
+  client: TxLineClient,
+  entry: any,
+  payer: anchor.web3.Keypair,
+): Promise<boolean> {
   const market = new PublicKey(entry.market);
   const acct: any = await (program.account as any).market.fetchNullable(market);
   if (!acct) return false;
@@ -99,19 +108,41 @@ async function settleOne(program: anchor.Program, client: TxLineClient, entry: a
   };
 
   let sig: string;
-  if (allHold) {
-    sig = await program.methods.settleYes(input).accounts(accounts).preInstructions([cu]).rpc();
-  } else {
-    const failedIdx = legResults.findIndex((r) => !r);
+  const failedIdx = legResults.findIndex((r) => !r);
+  let eqBranch: any = { below: {} };
+  if (!allHold) {
     const failed = legs[failedIdx];
     // eq_branch: when negating EqualTo we must say which side the real value fell on.
-    let eqBranch = { below: {} };
     if (failed.cmp === "equalTo") {
       const a = values.get(failed.keyA) ?? 0;
       const b = failed.kind === "binary" ? (values.get(failed.keyB) ?? 0) : 0;
       const lhs = failed.kind === "binary" ? (failed.op === "add" ? a + b : a - b) : a;
-      eqBranch = lhs < failed.threshold ? { below: {} } : ({ above: {} } as any);
+      eqBranch = lhs < failed.threshold ? { below: {} } : { above: {} };
     }
+  }
+
+  const payloadBytes = serializePayload(program, input);
+  if (payloadBytes.length > MAX_SINGLE_TX_PAYLOAD) {
+    // Parlay-sized proof: stage into the proof buffer, then settle from it.
+    console.log(`  ${entry.label}: payload ${payloadBytes.length}B > 1-tx cap → buffered flow`);
+    await stageProofChunks(program, payer, market, payloadBytes, 2_000);
+    const bufferedAccounts = { ...accounts, proofBuffer: proofBufferPda(market, settler) };
+    if (allHold) {
+      sig = await program.methods
+        .settleYesBuffered()
+        .accounts(bufferedAccounts)
+        .preInstructions([cu])
+        .rpc();
+    } else {
+      sig = await program.methods
+        .settleNoBuffered(failedIdx, eqBranch)
+        .accounts(bufferedAccounts)
+        .preInstructions([cu])
+        .rpc();
+    }
+  } else if (allHold) {
+    sig = await program.methods.settleYes(input).accounts(accounts).preInstructions([cu]).rpc();
+  } else {
     sig = await program.methods
       .settleNo(input, failedIdx, eqBranch)
       .accounts(accounts)
@@ -138,7 +169,7 @@ async function main() {
     for (const entry of seeded) {
       if (entry.settleTx) continue;
       try {
-        await settleOne(program, client, entry);
+        await settleOne(program, client, entry, payer);
       } catch (e) {
         console.log(`  ${entry.label}: ERROR ${e}`);
       }

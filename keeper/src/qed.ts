@@ -116,6 +116,13 @@ export function positionPda(market: PublicKey, owner: PublicKey, side: "yes" | "
   )[0];
 }
 
+export function proofBufferPda(market: PublicKey, settler: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync(
+    [Buffer.from("proof"), market.toBuffer(), settler.toBuffer()],
+    QED_ID,
+  )[0];
+}
+
 /** daily_scores_roots PDA on txoracle for a ms timestamp. */
 export function dailyRootsPda(tsMs: number | bigint): PublicKey {
   const epochDay = Number(BigInt(tsMs) / 86_400_000n);
@@ -175,4 +182,47 @@ export function bundleValues(bundle: any): Map<number, number> {
   const m = new Map<number, number>();
   for (const s of bundle.statsToProve ?? []) m.set(s.key, s.value);
   return m;
+}
+
+// ─── Buffered settlement (proofs too big for one transaction) ──
+/**
+ * Borsh-serialize a StatValidationInput exactly as the program deserializes it.
+ * (Anchor's `coder.types.encode` allocates only 1000 bytes — parlay proofs are
+ * bigger — so we drive the IDL layout with our own buffer.)
+ */
+export function serializePayload(program: anchor.Program, payload: any): Buffer {
+  const layouts = (program.coder.types as any).typeLayouts;
+  // anchor's Program camelCases IDL names internally
+  const layout = layouts.get("statValidationInput") ?? layouts.get("StatValidationInput");
+  if (!layout) throw new Error("StatValidationInput missing from IDL types");
+  const buf = Buffer.alloc(4096);
+  const len = layout.encode(payload, buf);
+  return buf.subarray(0, len);
+}
+
+/** Payloads above this serialized size must go through the proof buffer. */
+export const MAX_SINGLE_TX_PAYLOAD = 850;
+export const PROOF_CHUNK_SIZE = 800;
+
+/**
+ * Stage a serialized payload into the settler's proof buffer via
+ * `write_proof_chunk` transactions (~800 bytes each, sequential).
+ */
+export async function stageProofChunks(
+  program: anchor.Program,
+  settler: Keypair,
+  market: PublicKey,
+  bytes: Buffer,
+  paceMs = 0,
+): Promise<PublicKey> {
+  const buffer = proofBufferPda(market, settler.publicKey);
+  for (let offset = 0; offset < bytes.length; offset += PROOF_CHUNK_SIZE) {
+    const chunk = bytes.subarray(offset, offset + PROOF_CHUNK_SIZE);
+    await program.methods
+      .writeProofChunk(offset, Buffer.from(chunk))
+      .accounts({ settler: settler.publicKey, market, proofBuffer: buffer })
+      .rpc();
+    if (paceMs > 0) await new Promise((r) => setTimeout(r, paceMs));
+  }
+  return buffer;
 }

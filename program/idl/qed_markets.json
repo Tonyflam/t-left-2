@@ -440,6 +440,150 @@
       ]
     },
     {
+      "name": "settle_no_buffered",
+      "docs": [
+        "Settle NO from a previously staged proof buffer."
+      ],
+      "discriminator": [
+        36,
+        243,
+        87,
+        13,
+        111,
+        75,
+        0,
+        243
+      ],
+      "accounts": [
+        {
+          "name": "settler",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "settler_token",
+          "docs": [
+            "Bounty destination — any token account of the market's mint."
+          ],
+          "writable": true
+        },
+        {
+          "name": "fee_treasury_token",
+          "docs": [
+            "Must be the exact fee treasury pinned at creation."
+          ],
+          "writable": true
+        },
+        {
+          "name": "oracle_program",
+          "docs": [
+            "the handler before the CPI."
+          ]
+        },
+        {
+          "name": "daily_scores_roots",
+          "docs": [
+            "pinned oracle program id."
+          ]
+        },
+        {
+          "name": "proof_buffer",
+          "docs": [
+            "Staged payload; closed back to the settler on success (rent-neutral)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  111,
+                  102
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "settler"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "failed_leg_index",
+          "type": "u8"
+        },
+        {
+          "name": "eq_branch",
+          "type": {
+            "option": {
+              "defined": {
+                "name": "EqBranch"
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "settle_yes",
       "docs": [
         "Prove the YES theorem: the payload must Merkle-prove every leg's stat",
@@ -549,6 +693,135 @@
           }
         }
       ]
+    },
+    {
+      "name": "settle_yes_buffered",
+      "docs": [
+        "Settle YES from a previously staged proof buffer (parlay-sized proofs)."
+      ],
+      "discriminator": [
+        150,
+        185,
+        24,
+        22,
+        99,
+        157,
+        241,
+        157
+      ],
+      "accounts": [
+        {
+          "name": "settler",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "settler_token",
+          "docs": [
+            "Bounty destination — any token account of the market's mint."
+          ],
+          "writable": true
+        },
+        {
+          "name": "fee_treasury_token",
+          "docs": [
+            "Must be the exact fee treasury pinned at creation."
+          ],
+          "writable": true
+        },
+        {
+          "name": "oracle_program",
+          "docs": [
+            "the handler before the CPI."
+          ]
+        },
+        {
+          "name": "daily_scores_roots",
+          "docs": [
+            "pinned oracle program id."
+          ]
+        },
+        {
+          "name": "proof_buffer",
+          "docs": [
+            "Staged payload; closed back to the settler on success (rent-neutral)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  111,
+                  102
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "settler"
+              }
+            ]
+          }
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
     },
     {
       "name": "stake",
@@ -696,6 +969,95 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "write_proof_chunk",
+      "docs": [
+        "Stage a slice of a serialized `StatValidationInput` into the settler's",
+        "proof buffer. Multi-leg parlay proofs exceed the 1232-byte transaction",
+        "cap, so they are uploaded in chunks and settled with",
+        "`settle_yes_buffered` / `settle_no_buffered`."
+      ],
+      "discriminator": [
+        183,
+        3,
+        171,
+        138,
+        153,
+        138,
+        133,
+        147
+      ],
+      "accounts": [
+        {
+          "name": "settler",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "market",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  97,
+                  114,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market.market_id",
+                "account": "Market"
+              }
+            ]
+          }
+        },
+        {
+          "name": "proof_buffer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  114,
+                  111,
+                  111,
+                  102
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "market"
+              },
+              {
+                "kind": "account",
+                "path": "settler"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "offset",
+          "type": "u32"
+        },
+        {
+          "name": "chunk",
+          "type": "bytes"
+        }
+      ]
     }
   ],
   "accounts": [
@@ -723,6 +1085,19 @@
         64,
         247,
         208
+      ]
+    },
+    {
+      "name": "ProofBuffer",
+      "discriminator": [
+        71,
+        133,
+        225,
+        94,
+        9,
+        130,
+        40,
+        161
       ]
     }
   ],
@@ -959,6 +1334,21 @@
     },
     {
       "code": 6030,
+      "name": "ProofTooLarge",
+      "msg": "Proof payload exceeds the staging buffer capacity"
+    },
+    {
+      "code": 6031,
+      "name": "ProofBufferMismatch",
+      "msg": "Proof buffer does not belong to this settler/market"
+    },
+    {
+      "code": 6032,
+      "name": "MalformedProof",
+      "msg": "Staged proof payload failed to deserialize"
+    },
+    {
+      "code": 6033,
       "name": "MathOverflow",
       "msg": "Arithmetic overflow"
     }
@@ -1393,6 +1783,32 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ProofBuffer",
+      "docs": [
+        "Per-(market, settler) staging area for proof payloads that exceed the",
+        "1232-byte transaction cap (multi-leg parlays). Chunks are appended with",
+        "`write_proof_chunk`; `settle_*_buffered` consumes the buffer and closes it",
+        "back to the settler, so staging is rent-neutral."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "market",
+            "type": "pubkey"
+          },
+          {
+            "name": "data",
+            "type": "bytes"
           }
         ]
       }

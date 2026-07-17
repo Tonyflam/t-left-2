@@ -7,12 +7,14 @@
     "setup": "tsx src/setup.ts",
     "capture": "tsx src/capture-golden.ts",
     "seed": "tsx src/seed-markets.ts",
-    "watch": "tsx src/watch-settle.ts"
+    "watch": "tsx src/watch-settle.ts",
+    "test": "tsx --test tests/e2e.test.ts"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
     "@solana/spl-token": "^0.4.9",
     "@solana/web3.js": "^1.95.8",
+    "litesvm": "^0.8.0",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
